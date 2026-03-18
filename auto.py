@@ -493,17 +493,19 @@ def save_token_json(token_json: str, output_dir: str = "codex") -> Path:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Register account and persist the generated token json.")
     parser.add_argument("--once", action="store_true", help="Workflow compatibility flag; the script always runs once.")
-    parser.add_argument("--output-dir", default="codex", help="Directory used to store generated token json files.")
+    parser.add_argument("--output-dir", default="~/m/api/cpa-public/auths", help="Directory used to store generated token json files.")
     parser.add_argument("--proxy", default=None, help="Optional HTTP/HTTPS proxy.")
     args = parser.parse_args(argv)
 
-    result = run(args.proxy)
-    if not result:
-        print("registration did not produce token json", file=sys.stderr)
-        return 1
+    while True:
+        result = run(args.proxy)
+        if not result:
+            print("registration did not produce token json", file=sys.stderr)
+            return 1
 
-    output_path = save_token_json(result, args.output_dir)
-    print(output_path)
+        output_path = save_token_json(result, args.output_dir)
+        print(output_path)
+        time.sleep(10)
     return 0
 
 
