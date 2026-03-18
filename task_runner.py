@@ -1,6 +1,8 @@
 #www~
+import argparse
 import json
 import os
+from pathlib import Path
 import re
 import sys
 import time
@@ -322,6 +324,42 @@ def run(proxy: str) -> str:
     final_resp = s.get(final_resp.headers.get("Location"), allow_redirects=False)
     cbk = final_resp.headers.get("Location")
     return submit_callback_url(callback_url=cbk, code_verifier=oauth.code_verifier, redirect_uri=oauth.redirect_uri, expected_state=oauth.state)
-    
+
+
+def _safe_name(value: str, fallback: str) -> str:
+    value = re.sub(r"[^A-Za-z0-9_.-]+", "_", (value or "").strip()).strip("._-")
+    return value or fallback
+
+
+def save_token_json(token_json: str, output_dir: str = "codex") -> Path:
+    data = json.loads(token_json)
+    email = _safe_name(str(data.get("email") or ""), "unknown")
+    account_id = _safe_name(str(data.get("account_id") or ""), uuid.uuid4().hex)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+
+    target_dir = Path(output_dir)
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target = target_dir / f"{stamp}-{email}-{account_id}.json"
+    target.write_text(token_json + "\n", encoding="utf-8")
+    return target
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Register account and persist the generated token json.")
+    parser.add_argument("--once", action="store_true", help="Workflow compatibility flag; the script always runs once.")
+    parser.add_argument("--output-dir", default="codex", help="Directory used to store generated token json files.")
+    parser.add_argument("--proxy", default=None, help="Optional HTTP/HTTPS proxy.")
+    args = parser.parse_args(argv)
+
+    result = run(args.proxy)
+    if not result:
+        print("registration did not produce token json", file=sys.stderr)
+        return 1
+
+    output_path = save_token_json(result, args.output_dir)
+    print(output_path)
+    return 0
+
+
 if __name__ == "__main__":
-    print(run(None))
+    raise SystemExit(main())
